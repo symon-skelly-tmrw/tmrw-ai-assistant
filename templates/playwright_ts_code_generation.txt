@@ -1,0 +1,146 @@
+Analyze the provided JSON history of browser interactions and generate Playwright TypeScript code that exactly replicates the workflow. The code must follow these strict requirements:
+
+1. Code Organization and Structure:
+   - Use TypeScript with proper type annotations
+   - Create a single test flow that matches the sequence in history.json
+   - Include all necessary imports (playwright, '@POM' for Page Object Locators)
+   - Use descriptive test names that reflect the workflow
+   - Break down complex actions into commented sections
+   - Use await test.step() for grouped actions when applicable.
+   - Follow consistent code formatting and organization
+   - Always ensure proper code indentation is used (2 spaces)
+   * Example:
+```typescript
+import { test, expect } from '@playwright/test';
+import { LoginPage, LeftNavigationPanel, AccountPage } from '@POM';
+
+test('User should be able to log in, update profile name, and save changes', async ({ page }) => {
+  
+  await test.step('Navigate to login page', async () => {
+    await page.goto(`${process.env.BASE_URL}/login`, { waitUntil: 'networkidle' });
+  });
+
+})
+```
+
+2. Locator Strategy (in priority order):
+   a. Page Object Model locators (from '@POM')
+   b. Role-based locators with specific attributes
+      - Example: getByRole('button', { name: 'Submit' })
+   c. Label-based locators for form fields
+      - Example: getByLabel('First Name')
+   d. Element IDs
+      - Use page.locator('#elementId') for elements with IDs
+   e. Text-based locators with exact matching
+      - Example: getByText('Submit', { exact: true })
+   f. CSS selectors (only when above options aren't available)
+      - Use parent-child relationships for ambiguous elements
+      - Example: page.locator('.form-section').getByRole('button')
+
+3. Navigation and Waiting:
+   - Utilize Playwright's auto-waiting features
+   - Never use arbitrary timeouts or sleeps
+   - Handle page transitions properly
+   - always use `${process.env.BASE_URL}/` when navigating to pages or validating redirects
+
+4. Data Input and Validation:
+   - Maintain data consistency throughout the workflow
+   - For assertions:
+     * ONLY add assertions that can be directly derived from the history.json data
+     * Do not assume presence of success messages or specific UI elements unless explicitly shown in the history
+     * If no clear validation points exist in the history, limit to basic existence/visibility checks of interacted elements
+     * Example:
+     ```typescript
+     const firstName = 'Henry'
+     await page.getByLabel('First Name').fill(firstName);
+     // Only assert what we can verify from the history
+     await expect(page.getByLabel('First Name')).toHaveValue(firstName);
+     ```
+     * ALWAYS prefer .toContainText() over .toHaveText()
+   - Credential input:
+    * ALWAYS use process.env.EMAIL and process.env.PASSWORD when entering data into forms that require credentials unless specifically told otherwise
+    * Example:
+    ```typescript
+    await LoginPage.email_field(page).fill(process.env.EMAIL);
+    await LoginPage.password_field(page).fill(process.env.PASSWORD);
+    ```
+
+5. Element Selection Strategy:
+   - ALWAYS prioritise using the POM locators before generating new locators.
+   - When generating locators, analyze ALL available attributes in the history.json
+   - Ignore attributes that appear to be dynamic or random (e.g., random-looking IDs, auto-generated classes)
+     * Skip attributes that look like random strings (e.g., id="APjFqb", data-id="xyz123")
+     * Skip auto-generated class names (e.g., class="MuiButton-root-123")
+     * Skip any attribute values that contain random-looking numbers or hashes
+   - If multiple attributes are available (role, type, name, aria-label, id, class), combine the stable ones for unique identification
+   - Priority order for attributes:
+     1. Semantic attributes (role, type, name, aria-label)
+     2. Stable, predictable IDs (e.g., 'submit-button', 'login-form')
+     3. CSS selectors with multiple stable attributes
+   - Example:
+     ```typescript
+     // DON'T - Using random/dynamic ID
+     page.locator('#APjFqb')
+     
+     // DO - Use stable, semantic attributes instead
+     page.locator('input[name="q"][type="text"][aria-label="Search"]')
+     ```
+
+   - When dealing with complex selectors from history.json:
+     ```json
+     {
+       "css_selector": "input[id=\"APjFqb\"][aria-label=\"Google Search\"][name=\"q\"][role=\"combobox\"]"
+     }
+     ```
+     Transform into Playwright locator by removing random attributes:
+     ```typescript
+     // Remove the random ID "APjFqb" and keep stable attributes
+     page.locator('input[aria-label="Google Search"][name="q"][role="combobox"]')
+     ```
+
+6. Handling Multiple Matches:
+   - Always check if the element might have duplicates in the DOM
+   - Use the most specific combination of attributes possible
+   - Consider using nth-match or first/last if multiple elements are expected
+   - Example:
+     ```typescript
+     // If multiple matches are possible but we want a specific one
+     page.locator('input[name="btnK"][role="button"]').first()
+     // Or use nth if specific index is known
+     page.locator('input[name="btnK"][role="button"]').nth(0)
+     ```
+
+7. POM File Comments:
+   - ALWAYS read the comments in the POM file, as these will help you determine which locators to use for any given situation
+
+Here is the expected code format:
+```typescript
+import { test, expect } from '@playwright/test';
+import { LoginPage } from '@POM'
+
+test('descriptive test name for the workflow', async ({ page }) => {
+    await test.step('navigate to URL', async => {
+        await page.goto(`${process.env.BASE_URL}/login`, { waitUntil: 'networkidle' });
+    })
+
+    await test.step('Enter credentials and submit', async () => {
+        await LoginPage.email_field(page).fill(email);
+        await LoginPage.password_field(page).fill(password);
+        await LoginPage.login_button(page).click();
+    })
+
+    await test.step('Confirm user is redirected to select-room page', async () => {
+        // You may use basic validation checks here, only if available in the history.
+    })
+});
+```
+
+Here is the json file content:
+________
+{json_file_content}
+________
+
+Here are the Page Object Model Locators that you can use:
+________
+{pom_code}
+________

@@ -1,0 +1,5 @@
+Auth Token Loaded from Cookies
+Once you have visited the BASE_URL at the start of the task:
+1. Wait 3 seconds
+2. Visit {config.DEFAULT_BASE_URL}/select-room in a new tab so Authentication is accepted
+3. Continue the task from this new tab
