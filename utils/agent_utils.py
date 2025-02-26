@@ -4,7 +4,7 @@ from openai import OpenAI
 import requests
 import time
 from pathlib import Path
-from browser_use import Agent, Browser, BrowserContextConfig
+from browser_use import Agent, Browser, BrowserConfig, BrowserContextConfig
 from langchain_openai import ChatOpenAI
 from browser_use.browser.context import BrowserContext
 import config
@@ -79,13 +79,16 @@ def run_ai_agent(user_prompt: str, openai_api_key: str) -> str:
     authenticate_via_api()
 
     # Load cookies from file
-    browser_config = BrowserContextConfig(
+    browser_context_config = BrowserContextConfig(
         cookies_file=str(COOKIES_FILE)  # ✅ Load cookies from saved file
     )
 
+    browser_config = BrowserConfig(
+        headless=True
+    )
     # Create browser and context
-    browser = Browser()
-    context = BrowserContext(browser=browser, config=browser_config)
+    browser = Browser(config=browser_config)
+    context = BrowserContext(browser=browser, config=browser_context_config)
 
     agent = Agent(
         task=f"{user_prompt}{auth_prompt}",
@@ -97,7 +100,7 @@ def run_ai_agent(user_prompt: str, openai_api_key: str) -> str:
         max_failures=2,
         max_actions_per_step=5,
         save_conversation_path="logs/conversation.json",
-        browser_context=context
+        browser_context=context,
     )
 
     # Use asyncio to run the agent
